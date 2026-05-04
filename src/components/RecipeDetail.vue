@@ -5,25 +5,28 @@
         ← 返回
       </button>
       <button class="favorite-btn" :class="{ active: isFavorite }" @click="toggleFavorite">
-        <span v-if="isFavorite">★</span>
-        <span v-else>☆</span>
+        {{ isFavorite ? '❤️' : '🤍' }}
       </button>
     </div>
     
     <div class="recipe-cover">
-      <img :src="recipe.strMealThumb" :alt="recipe.strMeal">
+      <img :src="recipe.image" :alt="recipe.name">
     </div>
     
     <div class="detail-content">
-      <h1 class="recipe-title">{{ recipe.strMeal }}</h1>
-      
-      <div class="recipe-tags">
-        <span v-if="recipe.strCategory" class="tag">{{ recipe.strCategory }}</span>
-        <span v-if="recipe.strArea" class="tag">{{ recipe.strArea }}</span>
+      <div class="title-section">
+        <h1 class="recipe-title">{{ recipe.name }}</h1>
+        <div class="recipe-meta">
+          <span class="meta-item">{{ recipe.category }}</span>
+          <span class="meta-item">{{ recipe.area }}</span>
+        </div>
+        <div class="tag-list">
+          <span v-for="tag in recipe.tags" :key="tag" class="recipe-tag">{{ tag }}</span>
+        </div>
       </div>
       
-      <div class="detail-section" v-if="recipe.ingredients && recipe.ingredients.length > 0">
-        <h3 class="section-title">所需食材</h3>
+      <div class="detail-section">
+        <h3 class="section-title">🥗 所需食材</h3>
         <div class="ingredients-list">
           <div 
             v-for="(ingredient, index) in recipe.ingredients"
@@ -31,45 +34,39 @@
             class="ingredient-item"
           >
             <span class="ingredient-name">{{ ingredient.name }}</span>
-            <span class="ingredient-measure">{{ ingredient.measure }}</span>
+            <span class="ingredient-amount">{{ ingredient.amount }}</span>
           </div>
         </div>
       </div>
       
-      <div class="detail-section" v-if="recipe.strInstructions">
-        <h3 class="section-title">做法</h3>
+      <div class="detail-section">
+        <h3 class="section-title">👨‍🍳 做法步骤</h3>
         <div class="instructions">
-          <p v-for="(step, index) in recipe.strInstructions.split('\n').filter(Boolean)" :key="index">
-            {{ step }}
-          </p>
+          <div 
+            v-for="(step, index) in recipe.instructions"
+            :key="index"
+            class="step-item"
+          >
+            <div class="step-number">{{ index + 1 }}</div>
+            <p class="step-text">{{ step }}</p>
+          </div>
         </div>
-      </div>
-      
-      <div class="detail-section" v-if="recipe.strSource">
-        <a 
-          :href="recipe.strSource"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="source-link"
-        >
-          查看原文 →
-        </a>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Meal } from '@/types'
+import type { Recipe } from '../data/recipes'
 
 const props = defineProps<{
-  recipe: Meal
+  recipe: Recipe
   isFavorite: boolean
 }>()
 
 const emit = defineEmits<{
   back: []
-  toggleFavorite: [recipe: Meal]
+  toggleFavorite: [recipe: Recipe]
 }>()
 
 const toggleFavorite = () => {
@@ -81,6 +78,8 @@ const toggleFavorite = () => {
 .recipe-detail {
   background: #fff;
   min-height: 100vh;
+  margin: -20px;
+  margin-bottom: -100px;
 }
 
 .detail-header {
@@ -89,24 +88,27 @@ const toggleFavorite = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background: #fff;
-  z-index: 10;
-  border-bottom: 1px solid #e5e5e5;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 100;
 }
 
-.back-btn, .favorite-btn {
-  padding: 8px 12px;
-  border: 1px solid #e5e5e5;
+.back-btn,
+.favorite-btn {
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
   background: #fff;
-  border-radius: 6px;
-  font-size: 16px;
+  border-radius: 12px;
+  font-size: 18px;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.favorite-btn.active {
-  color: #f44336;
-  border-color: #f44336;
+.back-btn:hover,
+.favorite-btn:hover {
+  background: #f9fafb;
 }
 
 .recipe-cover {
@@ -115,44 +117,68 @@ const toggleFavorite = () => {
 
 .recipe-cover img {
   width: 100%;
-  aspect-ratio: 16/9;
+  aspect-ratio: 16/10;
   object-fit: cover;
 }
 
 .detail-content {
-  padding: 20px;
+  padding: 24px 20px;
+}
+
+.title-section {
+  margin-bottom: 32px;
 }
 
 .recipe-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
   margin-bottom: 12px;
 }
 
-.recipe-tags {
+.recipe-meta {
   display: flex;
-  gap: 8px;
-  margin-bottom: 30px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.recipe-tags .tag {
-  padding: 6px 12px;
-  background: #f5f5f5;
-  border-radius: 15px;
+.meta-item {
+  padding: 6px 14px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 12px;
   font-size: 13px;
-  color: #666;
+  font-weight: 600;
+}
+
+.tag-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.recipe-tag {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #fff0e9 0%, #ffede5 100%);
+  color: #ff6b35;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .detail-section {
-  margin-bottom: 30px;
+  margin-bottom: 36px;
 }
 
 .section-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e5e5e5;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ingredients-list {
@@ -164,37 +190,52 @@ const toggleFavorite = () => {
 .ingredient-item {
   display: flex;
   justify-content: space-between;
-  padding: 10px 15px;
-  background: #f9f9f9;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 14px 18px;
+  background: #f9fafb;
+  border-radius: 12px;
+  font-size: 15px;
 }
 
 .ingredient-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.ingredient-amount {
+  color: #6b7280;
   font-weight: 500;
 }
 
-.ingredient-measure {
-  color: #666;
-}
-
 .instructions {
-  line-height: 1.8;
-  color: #444;
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.instructions p {
-  margin-bottom: 12px;
+.step-item {
+  display: flex;
+  gap: 14px;
 }
 
-.source-link {
-  display: inline-block;
-  padding: 12px 24px;
-  background: #111;
+.step-number {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8f66 100%);
   color: #fff;
-  text-decoration: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 50%;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.step-text {
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.7;
+  padding-top: 6px;
+  flex: 1;
 }
 </style>

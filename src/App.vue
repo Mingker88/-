@@ -1,7 +1,7 @@
 <template>
   <div class="app">
     <div class="header">
-      <h1>食材找菜谱</h1>
+      <h1 class="app-title">🍳 食材找菜谱</h1>
     </div>
     
     <div class="nav-tabs">
@@ -15,7 +15,7 @@
         :class="{ active: activeTab === 'favorites' }"
         @click="activeTab = 'favorites'"
       >
-        收藏
+        收藏夹
       </button>
     </div>
     
@@ -33,7 +33,7 @@
       <RecipeDetail 
         v-if="selectedRecipe"
         :recipe="selectedRecipe"
-        :is-favorite="isFavorite(selectedRecipe.idMeal)"
+        :is-favorite="isFavorite(selectedRecipe.id)"
         @back="selectedRecipe = null"
         @toggle-favorite="toggleFavorite"
       />
@@ -47,116 +47,108 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import IngredientsSearch from './components/IngredientsSearch.vue'
 import RecipesList from './components/RecipesList.vue'
 import RecipeDetail from './components/RecipeDetail.vue'
 import Favorites from './components/Favorites.vue'
-import type { Meal } from '@/types'
-import { searchMealsByIngredients, getMealById } from '@/api/meal'
+import { recipes, type Recipe } from './data/recipes'
 
 const activeTab = ref<'ingredients' | 'favorites'>('ingredients')
-const searchResults = ref<Meal[]>([])
+const searchResults = ref<Recipe[]>([])
 const showResultPage = ref(false)
-const selectedRecipe = ref<Meal | null>(null)
-const favorites = ref<Meal[]>([])
+const selectedRecipe = ref<Recipe | null>(null)
 
-// 收藏功能
-const loadFavorites = () => {
+const favoritesIds = ref<string[]>(() => {
   const saved = localStorage.getItem('recipe_favorites')
-  if (saved) {
-    const ids = JSON.parse(saved)
-    // 重新加载收藏的食谱
-    Promise.all(ids.map((id: string) => getMealById(id))).then(meals => {
-      favorites.value = meals.filter((m): m is Meal => m !== null)
-    })
-  }
-}
+  return saved ? JSON.parse(saved) : []
+})
+
+const favorites = computed(() => {
+  return recipes.filter(r => favoritesIds.value.includes(r.id))
+})
 
 const isFavorite = (id: string) => {
-  const saved = localStorage.getItem('recipe_favorites')
-  if (!saved) return false
-  const ids = JSON.parse(saved)
-  return ids.includes(id)
+  return favoritesIds.value.includes(id)
 }
 
-const toggleFavorite = (recipe: Meal) => {
-  const saved = localStorage.getItem('recipe_favorites')
-  let ids: string[] = saved ? JSON.parse(saved) : []
-  
-  if (ids.includes(recipe.idMeal)) {
-    ids = ids.filter(id => id !== recipe.idMeal)
+const toggleFavorite = (recipe: Recipe) => {
+  const index = favoritesIds.value.indexOf(recipe.id)
+  if (index > -1) {
+    favoritesIds.value.splice(index, 1)
   } else {
-    ids.unshift(recipe.idMeal)
+    favoritesIds.value.unshift(recipe.id)
   }
-  
-  localStorage.setItem('recipe_favorites', JSON.stringify(ids))
-  loadFavorites()
+  localStorage.setItem('recipe_favorites', JSON.stringify(favoritesIds.value))
 }
 
-// 搜索食谱
-const showResult = async (ingredients: string[]) => {
-  searchResults.value = await searchMealsByIngredients(ingredients)
+const showResult = (selectedIngredients: string[]) => {
+  if (selectedIngredients.length === 0) {
+    searchResults.value = recipes
+  } else {
+    searchResults.value = recipes.filter(recipe => {
+      return selectedIngredients.some(ing => 
+        recipe.ingredients.some(i => i.name.includes(ing))
+      )
+    })
+  }
   showResultPage.value = true
 }
 
-const showRecipeDetail = (recipe: Meal) => {
+const showRecipeDetail = (recipe: Recipe) => {
   selectedRecipe.value = recipe
 }
-
-onMounted(() => {
-  loadFavorites()
-})
 </script>
 
 <style scoped>
 .app {
   min-height: 100vh;
-  background: #fff;
+  background: linear-gradient(180deg, #fff0e9 0%, #ffffff 300px);
 }
 
 .header {
-  padding: 20px;
+  padding: 24px 20px 16px;
   text-align: center;
-  border-bottom: 1px solid #e5e5e5;
 }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: 600;
+.app-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ff6b35;
+  letter-spacing: -0.5px;
 }
 
 .nav-tabs {
   display: flex;
-  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
+  margin: 0 20px;
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  gap: 4px;
 }
 
 .nav-tabs button {
   flex: 1;
-  padding: 15px;
+  padding: 12px 16px;
   border: none;
-  background: none;
-  font-size: 16px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
   cursor: pointer;
-  position: relative;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .nav-tabs button.active {
-  font-weight: 600;
-}
-
-.nav-tabs button.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 2px;
-  background: #111;
+  background: #ff6b35;
+  color: #fff;
 }
 
 .content {
-  padding-bottom: 20px;
+  padding: 20px 20px 100px;
+  max-width: 600px;
+  margin: 0 auto;
 }
 </style>

@@ -10,18 +10,18 @@
     <div class="recipes-grid">
       <div 
         v-for="recipe in recipes"
-        :key="recipe.idMeal"
+        :key="recipe.id"
         class="recipe-card"
         @click="emit('select', recipe)"
       >
         <div class="recipe-image">
-          <img :src="recipe.strMealThumb" :alt="recipe.strMeal" loading="lazy">
+          <img :src="recipe.image" :alt="recipe.name" loading="lazy">
+          <div class="category-badge">{{ recipe.category }}</div>
         </div>
         <div class="recipe-info">
-          <h3 class="recipe-name">{{ recipe.strMeal }}</h3>
-          <div class="recipe-meta">
-            <span v-if="recipe.strCategory" class="meta-tag">{{ recipe.strCategory }}</span>
-            <span v-if="recipe.strArea" class="meta-tag">{{ recipe.strArea }}</span>
+          <h3 class="recipe-name">{{ recipe.name }}</h3>
+          <div class="recipe-tags">
+            <span v-for="tag in recipe.tags" :key="tag" class="tag">{{ tag }}</span>
           </div>
         </div>
       </div>
@@ -30,66 +30,74 @@
 </template>
 
 <script setup lang="ts">
-import type { Meal } from '@/types'
+import type { Recipe } from '../data/recipes'
 
 defineProps<{
-  recipes: Meal[]
+  recipes: Recipe[]
 }>()
 
 const emit = defineEmits<{
   back: []
-  select: [recipe: Meal]
+  select: [recipe: Recipe]
 }>()
 </script>
 
 <style scoped>
 .recipes-list {
-  padding: 0 20px 20px;
+  margin-top: -12px;
 }
 
 .header-bar {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 15px 0;
-  border-bottom: 1px solid #e5e5e5;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
 .back-btn {
-  padding: 8px 12px;
-  border: 1px solid #e5e5e5;
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 14px;
+  font-weight: 600;
+  color: #374151;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: #f9fafb;
 }
 
 .list-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
 }
 
 .recipes-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
+  gap: 16px;
 }
 
 .recipe-card {
   background: #fff;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
-  transition: box-shadow 0.2s;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
 }
 
 .recipe-card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 .recipe-image {
+  position: relative;
   aspect-ratio: 4/3;
   overflow: hidden;
 }
@@ -100,30 +108,43 @@ const emit = defineEmits<{
   object-fit: cover;
 }
 
+.category-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
 .recipe-info {
-  padding: 12px;
+  padding: 14px;
 }
 
 .recipe-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
   margin-bottom: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
 }
 
-.recipe-meta {
+.recipe-tags {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.meta-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  background: #f5f5f5;
+.tag {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #fff0e9;
+  color: #ff6b35;
   border-radius: 10px;
-  color: #666;
+  font-weight: 500;
 }
 </style>
