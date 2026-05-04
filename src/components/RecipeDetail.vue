@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import type { Meal } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   recipe: Meal
   isFavorite: boolean
 }>()
@@ -75,11 +75,6 @@ const emit = defineEmits<{
 const toggleFavorite = () => {
   emit('toggleFavorite', props.recipe)
 }
-
-const props = defineProps<{
-  recipe: Meal
-  isFavorite: boolean
-}>()
 </script>
 
 <style scoped>
