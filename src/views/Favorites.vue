@@ -1,30 +1,29 @@
 <template>
   <div class="favorites">
-    <div class="favorites-header">
-      <h2>❤️ 我的收藏</h2>
+    <div class="header">
+      <h2 class="title">❤️ 我的收藏</h2>
     </div>
-    
-    <div v-if="favorites.length === 0" class="empty-state">
+
+    <div v-if="favorites.length === 0" class="empty">
       <div class="empty-icon">🍳</div>
       <p class="empty-text">还没有收藏任何菜谱</p>
-      <p class="empty-hint">去选食材页面找喜欢的菜谱吧</p>
+      <p class="empty-hint">去首页或食材页找找喜欢的菜谱吧</p>
     </div>
-    
+
     <div v-else class="recipes-grid">
-      <div 
+      <div
         v-for="recipe in favorites"
         :key="recipe.id"
         class="recipe-card"
-        @click="emit('select', recipe)"
+        @click="$router.push(`/recipe/${recipe.id}`)"
       >
         <div class="recipe-image">
-          <img :src="recipe.image" :alt="recipe.name" loading="lazy">
-          <div class="category-badge">{{ recipe.category }}</div>
+          <img :src="recipe.image" :alt="recipe.name" loading="lazy" />
         </div>
         <div class="recipe-info">
-          <h3 class="recipe-name">{{ recipe.name }}</h3>
+          <div class="recipe-name">{{ recipe.name }}</div>
           <div class="recipe-tags">
-            <span v-for="tag in recipe.tags" :key="tag" class="tag">{{ tag }}</span>
+            <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
           </div>
         </div>
       </div>
@@ -33,33 +32,33 @@
 </template>
 
 <script setup lang="ts">
-import type { Recipe } from '../data/recipes'
+import { ref, computed, onMounted } from 'vue'
+import { recipes } from '../data/recipes'
 
-defineProps<{
-  favorites: Recipe[]
-}>()
+const favoritesIds = ref<string[]>(() => {
+  const saved = localStorage.getItem('recipe_favorites')
+  return saved ? JSON.parse(saved) : []
+})
 
-const emit = defineEmits<{
-  select: [recipe: Recipe]
-}>()
+const favorites = computed(() => recipes.filter((r) => favoritesIds.value.includes(r.id)))
 </script>
 
 <style scoped>
 .favorites {
-  margin-top: -8px;
+  padding-bottom: 20px;
 }
 
-.favorites-header {
-  margin-bottom: 20px;
+.header {
+  margin-bottom: 18px;
 }
 
-.favorites-header h2 {
+.title {
   font-size: 20px;
   font-weight: 700;
   color: #1f2937;
 }
 
-.empty-state {
+.empty {
   text-align: center;
   padding: 60px 20px;
 }
@@ -84,16 +83,16 @@ const emit = defineEmits<{
 .recipes-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .recipe-card {
-  background: #fff;
+  background: white;
   border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  transition: all 0.2s;
 }
 
 .recipe-card:hover {
@@ -102,7 +101,6 @@ const emit = defineEmits<{
 }
 
 .recipe-image {
-  position: relative;
   aspect-ratio: 4/3;
   overflow: hidden;
 }
@@ -113,29 +111,19 @@ const emit = defineEmits<{
   object-fit: cover;
 }
 
-.category-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 5px 12px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 12px;
-  backdrop-filter: blur(4px);
-}
-
 .recipe-info {
-  padding: 14px;
+  padding: 12px;
 }
 
 .recipe-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: #1f2937;
   margin-bottom: 8px;
-  line-height: 1.4;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .recipe-tags {
@@ -145,8 +133,8 @@ const emit = defineEmits<{
 }
 
 .tag {
-  font-size: 12px;
-  padding: 4px 10px;
+  font-size: 11px;
+  padding: 3px 8px;
   background: #fff0e9;
   color: #ff6b35;
   border-radius: 10px;
