@@ -17,7 +17,7 @@
       <h1 class="title">{{ recipe.name }}</h1>
 
       <div class="meta">
-        <span v-if="recipe.category" class="meta-tag">{{ recipe.category }}</span>
+        <span v-if="recipe.category" class="meta-tag">{{ recipe.category.split('/')[1] || '中餐' }}</span>
         <span v-if="recipe.area" class="meta-tag">{{ recipe.area }}</span>
       </div>
 
@@ -44,17 +44,23 @@
           </div>
         </div>
       </div>
+      
+      <div class="section note">
+        <p class="note-text">数据来自开源项目 <a href="https://github.com/Anduin2017/HowToCook" target="_blank">HowToCook</a></p>
+      </div>
     </div>
   </div>
   <div v-else class="detail">
-    <div class="loading">加载中...</div>
+    <div class="loading">
+      <p>正在从 GitHub 加载菜谱详情...</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getRecipeById } from '../api/meal'
+import { getRecipeById } from '../api/howtocook'
 import type { Recipe } from '../types'
 
 const route = useRoute()
@@ -115,8 +121,8 @@ onMounted(async () => {
 .loading {
   padding: 80px 20px;
   text-align: center;
-  color: #999;
-  font-size: 18px;
+  color: #666;
+  font-size: 16px;
 }
 
 .cover {
@@ -239,5 +245,21 @@ onMounted(async () => {
   line-height: 1.7;
   padding-top: 6px;
   flex: 1;
+}
+
+.note {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.note-text {
+  color: #999;
+  font-size: 13px;
+}
+
+.note-text a {
+  color: #ff6b35;
+  text-decoration: none;
 }
 </style>

@@ -2,10 +2,10 @@
   <div class="ingredients">
     <div class="section">
       <h3 class="section-title">选择你家有的食材</h3>
-      <p class="section-hint">选择食材，我们为你推荐合适的菜谱</p>
+      <p class="section-hint">选择食材，我们从 HowToCook 开源项目中匹配菜谱</p>
       <div class="ingredients-grid">
         <button
-          v-for="ing in INGREDIENTS"
+          v-for="ing in ingredientsList"
           :key="ing"
           :class="{ active: selectedIngredients.includes(ing) }"
           @click="toggleIngredient(ing)"
@@ -37,7 +37,7 @@
         为你找到
         <span class="count">{{ matchedRecipes.length }}</span> 个菜谱
       </h3>
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading">正在搜索匹配的菜谱...</div>
       <div v-else class="recipes-grid">
         <div
           v-for="recipe in matchedRecipes"
@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Recipe } from '../types'
-import { searchRecipesByIngredients, INGREDIENTS } from '../api/meal'
+import { searchRecipesByIngredients, ingredientsList } from '../api/howtocook'
 
 const selectedIngredients = ref<string[]>([])
 const matchedRecipes = ref<Recipe[]>([])
@@ -209,7 +209,7 @@ const searchRecipes = async () => {
 .loading {
   padding: 40px 0;
   text-align: center;
-  color: #999;
+  color: #666;
   font-size: 16px;
 }
 

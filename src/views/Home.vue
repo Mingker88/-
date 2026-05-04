@@ -3,6 +3,7 @@
     <div class="section">
       <h3 class="section-title">分类浏览</h3>
       <div class="category-grid">
+        <button :class="{ active: activeCategory === '' }" @click="selectCategory({name:'全部', value:''})">全部</button>
         <button
           v-for="cat in categories"
           :key="cat.value"
@@ -16,10 +17,12 @@
 
     <div class="section">
       <h3 class="section-title">
-        {{ activeCategory || '全部' }}
+        {{ activeCategoryName || '全部' }}
         <span class="count">({{ recipes.length }})</span>
       </h3>
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading">
+        <p>正在从 GitHub 加载菜谱数据...</p>
+      </div>
       <div v-else class="recipes-grid">
         <div
           v-for="recipe in recipes"
@@ -32,7 +35,7 @@
           </div>
           <div class="recipe-info">
             <div class="recipe-name">{{ recipe.name }}</div>
-            <div class="recipe-tags" v-if="recipe.tags?.length">
+            <div class="recipe-tags">
               <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
             </div>
           </div>
@@ -45,20 +48,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { Recipe, Category } from '../types'
-import { getCategories, getRecipesByCategory, getAllRecipes } from '../api/meal'
+import { categories, getRecipesByCategory, getAllRecipes } from '../api/howtocook'
 
-const categories = ref<Category[]>([])
 const activeCategory = ref<string>('')
 const recipes = ref<Recipe[]>([])
 const loading = ref(false)
 
-async function loadCategories() {
-  const cats = await getCategories()
-  categories.value = [{ name: '全部', value: '' }, ...cats.slice(0, 12)]
-}
+const activeCategoryName = ref('')
 
-async function selectCategory(cat: Category) {
+async function selectCategory(cat: Category & { value: '' }) {
   activeCategory.value = cat.value
+  activeCategoryName.value = cat.name
   loading.value = true
   try {
     if (cat.value) {
@@ -72,7 +72,6 @@ async function selectCategory(cat: Category) {
 }
 
 onMounted(async () => {
-  await loadCategories()
   await selectCategory({ name: '全部', value: '' })
 })
 </script>
@@ -133,7 +132,7 @@ onMounted(async () => {
 .loading {
   padding: 40px 0;
   text-align: center;
-  color: #999;
+  color: #666;
   font-size: 16px;
 }
 

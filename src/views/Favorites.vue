@@ -4,14 +4,14 @@
       <h2 class="title">❤️ 我的收藏</h2>
     </div>
 
-    <div v-if="favorites.length === 0" class="empty">
+    <div v-if="favorites.length === 0 && !loading" class="empty">
       <div class="empty-icon">🍳</div>
       <p class="empty-text">还没有收藏任何菜谱</p>
       <p class="empty-hint">去首页或食材页找找喜欢的菜谱吧</p>
     </div>
 
     <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading">正在加载收藏的菜谱...</div>
       <div v-else class="recipes-grid">
         <div
           v-for="recipe in favorites"
@@ -35,12 +35,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { getRecipeById } from '../api/meal'
+import { ref, onMounted, watch } from 'vue'
+import { getRecipeById } from '../api/howtocook'
 import type { Recipe } from '../types'
 
-const router = useRouter()
 const favoritesIds = ref<string[]>(() => {
   const saved = localStorage.getItem('recipe_favorites')
   return saved ? JSON.parse(saved) : []
@@ -51,13 +49,13 @@ const loading = ref(false)
 async function loadFavorites() {
   loading.value = true
   const ids = favoritesIds.value
-  const recipes = []
-  for (const id of ids) {
+  const recipes: Recipe[] = []
+  for (const id of ids.slice(0, 20)) { // 限制加载数量
     try {
       const recipe = await getRecipeById(id)
       if (recipe) recipes.push(recipe)
-    } catch (e) {
-      console.error('Error loading favorite', id, e)
+    } catch (error) {
+      console.error('Error loading favorite:', id, error)
     }
   }
   favorites.value = recipes
@@ -85,7 +83,7 @@ onMounted(() => loadFavorites())
 .loading {
   padding: 40px 0;
   text-align: center;
-  color: #999;
+  color: #666;
   font-size: 16px;
 }
 
