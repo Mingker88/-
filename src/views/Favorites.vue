@@ -10,20 +10,23 @@
       <p class="empty-hint">去首页或食材页找找喜欢的菜谱吧</p>
     </div>
 
-    <div v-else class="recipes-grid">
-      <div
-        v-for="recipe in favorites"
-        :key="recipe.id"
-        class="recipe-card"
-        @click="$router.push(`/recipe/${recipe.id}`)"
-      >
-        <div class="recipe-image">
-          <img :src="recipe.image" :alt="recipe.name" loading="lazy" />
-        </div>
-        <div class="recipe-info">
-          <div class="recipe-name">{{ recipe.name }}</div>
-          <div class="recipe-tags">
-            <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+    <div v-else>
+      <div v-if="loading" class="loading">加载中...</div>
+      <div v-else class="recipes-grid">
+        <div
+          v-for="recipe in favorites"
+          :key="recipe.id"
+          class="recipe-card"
+          @click="$router.push(`/recipe/${recipe.id}`)"
+        >
+          <div class="recipe-image">
+            <img :src="recipe.image" :alt="recipe.name" loading="lazy" />
+          </div>
+          <div class="recipe-info">
+            <div class="recipe-name">{{ recipe.name }}</div>
+            <div class="recipe-tags" v-if="recipe.tags?.length">
+              <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -32,15 +35,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { recipes } from '../data/recipes'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { getRecipeById } from '../api/meal'
+import type { Recipe } from '../types'
 
+const router = useRouter()
 const favoritesIds = ref<string[]>(() => {
   const saved = localStorage.getItem('recipe_favorites')
   return saved ? JSON.parse(saved) : []
 })
+const favorites = ref<Recipe[]>([])
+const loading = ref(false)
 
-const favorites = computed(() => recipes.filter((r) => favoritesIds.value.includes(r.id)))
+async function loadFavorites() {
+  loading.value = true
+  const ids = favoritesIds.value
+  const recipes = []
+  for (const id of ids) {
+    try {
+      const recipe = await getRecipeById(id)
+      if (recipe) recipes.push(recipe)
+    } catch (e) {
+      console.error('Error loading favorite', id, e)
+    }
+  }
+  favorites.value = recipes
+  loading.value = false
+}
+
+onMounted(() => loadFavorites())
 </script>
 
 <style scoped>
@@ -56,6 +80,13 @@ const favorites = computed(() => recipes.filter((r) => favoritesIds.value.includ
   font-size: 20px;
   font-weight: 700;
   color: #1f2937;
+}
+
+.loading {
+  padding: 40px 0;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
 }
 
 .empty {

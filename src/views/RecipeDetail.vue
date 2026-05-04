@@ -17,11 +17,11 @@
       <h1 class="title">{{ recipe.name }}</h1>
 
       <div class="meta">
-        <span class="meta-tag">{{ recipe.category }}</span>
-        <span class="meta-tag">{{ recipe.area }}</span>
+        <span v-if="recipe.category" class="meta-tag">{{ recipe.category }}</span>
+        <span v-if="recipe.area" class="meta-tag">{{ recipe.area }}</span>
       </div>
 
-      <div class="tag-list">
+      <div v-if="recipe.tags?.length" class="tag-list">
         <span v-for="tag in recipe.tags" :key="tag" class="recipe-tag">{{ tag }}</span>
       </div>
 
@@ -46,32 +46,41 @@
       </div>
     </div>
   </div>
+  <div v-else class="detail">
+    <div class="loading">加载中...</div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { recipes } from '../data/recipes'
+import { getRecipeById } from '../api/meal'
+import type { Recipe } from '../types'
 
 const route = useRoute()
+const recipe = ref<Recipe | null>(null)
 const favoritesIds = ref<string[]>(() => {
   const saved = localStorage.getItem('recipe_favorites')
   return saved ? JSON.parse(saved) : []
 })
 
-const recipeId = route.params.id as string
-const recipe = computed(() => recipes.find((r) => r.id === recipeId))
-const isFavorite = computed(() => favoritesIds.value.includes(recipeId))
+const isFavorite = computed(() => favoritesIds.value.includes(route.params.id as string))
 
 const toggleFavorite = () => {
-  const idx = favoritesIds.value.indexOf(recipeId)
+  const id = route.params.id as string
+  const idx = favoritesIds.value.indexOf(id)
   if (idx > -1) {
     favoritesIds.value.splice(idx, 1)
   } else {
-    favoritesIds.value.unshift(recipeId)
+    favoritesIds.value.unshift(id)
   }
   localStorage.setItem('recipe_favorites', JSON.stringify(favoritesIds.value))
 }
+
+onMounted(async () => {
+  const id = route.params.id as string
+  recipe.value = await getRecipeById(id)
+})
 </script>
 
 <style scoped>
@@ -101,6 +110,13 @@ const toggleFavorite = () => {
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.loading {
+  padding: 80px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 18px;
 }
 
 .cover {

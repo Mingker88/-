@@ -7,7 +7,7 @@
           v-for="cat in categories"
           :key="cat.value"
           :class="{ active: activeCategory === cat.value }"
-          @click="activeCategory = cat.value"
+          @click="selectCategory(cat)"
         >
           {{ cat.name }}
         </button>
@@ -17,11 +17,12 @@
     <div class="section">
       <h3 class="section-title">
         {{ activeCategory || '全部' }}
-        <span class="count">({{ filteredRecipes.length }})</span>
+        <span class="count">({{ recipes.length }})</span>
       </h3>
-      <div class="recipes-grid">
+      <div v-if="loading" class="loading">加载中...</div>
+      <div v-else class="recipes-grid">
         <div
-          v-for="recipe in filteredRecipes"
+          v-for="recipe in recipes"
           :key="recipe.id"
           class="recipe-card"
           @click="$router.push(`/recipe/${recipe.id}`)"
@@ -31,7 +32,7 @@
           </div>
           <div class="recipe-info">
             <div class="recipe-name">{{ recipe.name }}</div>
-            <div class="recipe-tags">
+            <div class="recipe-tags" v-if="recipe.tags?.length">
               <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
             </div>
           </div>
@@ -42,15 +43,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { recipes, categories } from '../data/recipes'
+import { ref, onMounted } from 'vue'
+import type { Recipe, Category } from '../types'
+import { getCategories, getRecipesByCategory, getAllRecipes } from '../api/meal'
 
-const activeCategory = ref('')
-const filteredRecipes = computed(() => {
-  if (activeCategory.value) {
-    return recipes.filter((r) => r.category === activeCategory.value)
+const categories = ref<Category[]>([])
+const activeCategory = ref<string>('')
+const recipes = ref<Recipe[]>([])
+const loading = ref(false)
+
+async function loadCategories() {
+  const cats = await getCategories()
+  categories.value = [{ name: '全部', value: '' }, ...cats.slice(0, 12)]
+}
+
+async function selectCategory(cat: Category) {
+  activeCategory.value = cat.value
+  loading.value = true
+  try {
+    if (cat.value) {
+      recipes.value = await getRecipesByCategory(cat.value)
+    } else {
+      recipes.value = await getAllRecipes()
+    }
+  } finally {
+    loading.value = false
   }
-  return recipes
+}
+
+onMounted(async () => {
+  await loadCategories()
+  await selectCategory({ name: '全部', value: '' })
 })
 </script>
 
@@ -105,6 +128,13 @@ const filteredRecipes = computed(() => {
   background: linear-gradient(135deg, #ff6b35 0%, #ff8f66 100%);
   color: white;
   border-color: transparent;
+}
+
+.loading {
+  padding: 40px 0;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
 }
 
 .recipes-grid {

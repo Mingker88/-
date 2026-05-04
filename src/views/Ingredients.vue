@@ -2,10 +2,10 @@
   <div class="ingredients">
     <div class="section">
       <h3 class="section-title">选择你家有的食材</h3>
-      <p class="section-hint">多选食材，我们为你推荐合适的菜谱</p>
+      <p class="section-hint">选择食材，我们为你推荐合适的菜谱</p>
       <div class="ingredients-grid">
         <button
-          v-for="ing in ingredientsList"
+          v-for="ing in INGREDIENTS"
           :key="ing"
           :class="{ active: selectedIngredients.includes(ing) }"
           @click="toggleIngredient(ing)"
@@ -32,12 +32,13 @@
       查找菜谱
     </button>
 
-    <div class="section" v-if="matchedRecipes.length > 0">
+    <div class="section" v-if="matchedRecipes.length > 0 || loading">
       <h3 class="section-title">
         为你找到
         <span class="count">{{ matchedRecipes.length }}</span> 个菜谱
       </h3>
-      <div class="recipes-grid">
+      <div v-if="loading" class="loading">加载中...</div>
+      <div v-else class="recipes-grid">
         <div
           v-for="recipe in matchedRecipes"
           :key="recipe.id"
@@ -49,7 +50,7 @@
           </div>
           <div class="recipe-info">
             <div class="recipe-name">{{ recipe.name }}</div>
-            <div class="recipe-tags">
+            <div class="recipe-tags" v-if="recipe.tags?.length">
               <span v-for="tag in recipe.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
             </div>
           </div>
@@ -60,12 +61,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { recipes, ingredientsList as allIngredients } from '../data/recipes'
+import { ref } from 'vue'
+import type { Recipe } from '../types'
+import { searchRecipesByIngredients, INGREDIENTS } from '../api/meal'
 
-const ingredientsList = allIngredients
 const selectedIngredients = ref<string[]>([])
-const matchedRecipes = ref<any[]>([])
+const matchedRecipes = ref<Recipe[]>([])
+const loading = ref(false)
 
 const toggleIngredient = (ing: string) => {
   const idx = selectedIngredients.value.indexOf(ing)
@@ -81,16 +83,13 @@ const removeIngredient = (ing: string) => {
   if (idx > -1) selectedIngredients.value.splice(idx, 1)
 }
 
-const searchRecipes = () => {
-  if (selectedIngredients.value.length === 0) {
-    matchedRecipes.value = recipes
-    return
+const searchRecipes = async () => {
+  loading.value = true
+  try {
+    matchedRecipes.value = await searchRecipesByIngredients(selectedIngredients.value)
+  } finally {
+    loading.value = false
   }
-  matchedRecipes.value = recipes.filter((recipe) => {
-    return selectedIngredients.value.some((ing) =>
-      recipe.ingredients.some((item) => item.name.includes(ing))
-    )
-  })
 }
 </script>
 
@@ -205,6 +204,13 @@ const searchRecipes = () => {
 .search-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 107, 53, 0.45);
+}
+
+.loading {
+  padding: 40px 0;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
 }
 
 .recipes-grid {
