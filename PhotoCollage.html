@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoCollage - 照片排版工具</title>
+<style>
+  :root {
+    --bg: #1a1d23;
+    --card: #252830;
+    --card-hover: #2d303a;
+    --border: #3a3d47;
+    --text: #e0e0e0;
+    --text-dim: #8a8d96;
+    --accent: #6c8cff;
+    --accent-hover: #8aa4ff;
+    --danger: #ff6b6b;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    --transition: 0.2s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header .subtitle {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Canvas */
+  .canvas-wrapper {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: padding var(--transition);
+  }
+
+  .canvas-outer {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    aspect-ratio: 1 / 1;
+    transition: aspect-ratio 0.3s ease;
+  }
+  .canvas-outer.ratio-1-1 { aspect-ratio: 1 / 1; }
+  .canvas-outer.ratio-4-5 { aspect-ratio: 4 / 5; }
+  .canvas-outer.ratio-3-4 { aspect-ratio: 3 / 4; }
+  .canvas-outer.ratio-16-9 { aspect-ratio: 16 / 9; }
+  .canvas-outer.ratio-9-16 { aspect-ratio: 9 / 16; }
+  .canvas-outer.ratio-2-3 { aspect-ratio: 2 / 3; }
+
+  .canvas-inner {
+    position: absolute;
+    inset: 0;
+    background: #1e1f26;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px dashed var(--border);
+    display: grid;
+    transition: gap 0.3s ease;
+  }
+
+  /* Cells */
+  .cell {
+    position: relative;
+    background: #2a2d37;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cell.hidden { display: none; }
+  .cell.drag-over {
+    background: #3a3f55;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .cell.has-image { background: #000; }
+
+  .cell-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+  .cell-placeholder svg {
+    width: 32px;
+    height: 32px;
+    opacity: 0.4;
+  }
+  .cell-placeholder span {
+    font-size: 0.75rem;
+    opacity: 0.5;
+  }
+  .cell.has-image .cell-placeholder { display: none; }
+
+  .cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cell-delete {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s;
+    font-size: 14px;
+    line-height: 1;
+    z-index: 2;
+  }
+  .cell:hover .cell-delete,
+  .cell:focus-within .cell-delete {
+    opacity: 1;
+  }
+  .cell-delete:hover {
+    background: var(--danger);
+  }
+
+  /* Controls Panel */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .control-group {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+    flex: 1;
+    min-width: 200px;
+  }
+  .control-group.full-width {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+  .control-group-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  /* Layout Grid */
+  .layout-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .layout-thumb {
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    padding: 4px;
+    display: grid;
+    gap: 2px;
+    transition: border-color 0.2s, background 0.2s;
+    background: transparent;
+    outline: none;
+  }
+  .layout-thumb:hover {
+    border-color: var(--accent);
+    background: var(--card-hover);
+  }
+  .layout-thumb.active {
+    border-color: var(--accent);
+    background: rgba(108, 140, 255, 0.08);
+  }
+  .layout-thumb-cell {
+    background: #3a3d47;
+    border-radius: 2px;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* Ratio buttons */
+  .ratio-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .ratio-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .ratio-btn:hover {
+    border-color: var(--accent);
+    background: var(--card-hover);
+  }
+  .ratio-btn.active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Gap slider */
+  .gap-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .gap-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  .gap-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(108, 140, 255, 0.4);
+  }
+  .gap-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* Action buttons */
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    background: var(--card-hover);
+    border-color: var(--accent);
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .btn.primary:hover {
+    background: var(--accent-hover);
+  }
+  .btn.danger {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn.danger:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .toast.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Drag overlay */
+  .drag-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 29, 35, 0.85);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .drag-overlay.active {
+    opacity: 1;
+  }
+  .drag-overlay-content {
+    text-align: center;
+    color: var(--accent);
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  .drag-overlay-content svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 12px;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { padding: 10px; }
+    .app { gap: 14px; }
+    .header h1 { font-size: 1.4rem; }
+    .canvas-wrapper { padding: 10px; }
+    .controls { gap: 8px; }
+    .control-group { min-width: 140px; padding: 10px; }
+    .layout-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .btn { padding: 8px 14px; font-size: 0.78rem; }
+    .ratio-btn { padding: 5px 10px; font-size: 0.72rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>PhotoCollage</h1>
+    <div class="subtitle">照片排版工具 · 拖放 / 点击 / 粘贴上传</div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <div class="canvas-outer ratio-1-1" id="canvasOuter">
+      <div class="canvas-inner" id="canvasInner"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <!-- Layout picker -->
+    <div class="control-group full-width">
+      <div class="control-group-title">布局模板</div>
+      <div class="layout-grid" id="layoutGrid"></div>
+    </div>
+
+    <!-- Ratio -->
+    <div class="control-group">
+      <div class="control-group-title">画布比例</div>
+      <div class="ratio-buttons" id="ratioButtons"></div>
+    </div>
+
+    <!-- Gap -->
+    <div class="control-group">
+      <div class="control-group-title">图片间距</div>
+      <div class="gap-slider-container">
+        <input type="range" class="gap-slider" id="gapSlider" min="0" max="4" value="2" step="1">
+        <span class="gap-label" id="gapLabel">8px</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="control-group">
+      <div class="control-group-title">操作</div>
+      <div class="action-buttons">
+        <button class="btn primary" id="btnExport">📥 导出 PNG</button>
+        <button class="btn" id="btnRandomFill">🎲 随机填充</button>
+        <button class="btn danger" id="btnClear">🗑 清空全部</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="drag-overlay" id="dragOverlay">
+  <div class="drag-overlay-content">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <line x1="9" y1="15" x2="12" y2="12"/>
+      <line x1="15" y1="15" x2="12" y2="12"/>
+    </svg>
+    <div>释放以上传图片</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ──────────────────────────────────────
+  // STATE
+  // ──────────────────────────────────────
+  const GAP_VALUES = [0, 4, 8, 12, 16];
+  const RATIOS = [
+    { key: '1-1', label: '1:1' },
+    { key: '4-5', label: '4:5' },
+    { key: '3-4', label: '3:4' },
+    { key: '2-3', label: '2:3' },
+    { key: '16-9', label: '16:9' },
+    { key: '9-16', label: '9:16' },
+  ];
+
+  const LAYOUTS = [
+    { key: 'single',        label: '单张',   areas: ['a'],                                           cols: 1, rows: 1 },
+    { key: 'two-vertical',  label: '双竖',   areas: ['a b'],                                         cols: 2, rows: 1 },
+    { key: 'two-horizontal',label: '双横',   areas: ['a','b'],                                       cols: 1, rows: 2 },
+    { key: 'three-vertical',label: '三竖',   areas: ['a b c'],                                       cols: 3, rows: 1 },
+    { key: 'three-horizontal',label:'三横',  areas: ['a','b','c'],                                   cols: 1, rows: 3 },
+    { key: 'four-grid',     label: '四宫格', areas: ['a b','c d'],                                   cols: 2, rows: 2 },
+    { key: 'one-big-two-small', label: '一大两小', areas: ['a a','b c'],                              cols: 2, rows: 2 },
+    { key: 'six-grid',      label: '六宫格', areas: ['a b c','d e f'],                               cols: 3, rows: 2 },
+    { key: 'nine-grid',     label: '九宫格', areas: ['a b c','d e f','g h i'],                       cols: 3, rows: 3 },
+    { key: 'one-big-three-small', label: '一大三小', areas: ['a a b','a a c'],                        cols: 3, rows: 2 },
+    { key: 'two-big-two-small', label: '两大两小', areas: ['a a','b b','c d'],                        cols: 2, rows: 3 },
+    { key: 'five-cross',    label: '十字形', areas: ['. a .','b c d','. e .'],                       cols: 3, rows: 3 },
+  ];
+
+  // All possible cell names (a–i)
+  const ALL_CELLS = ['a','b','c','d','e','f','g','h','i'];
+
+  const state = {
+    layoutKey: 'four-grid',
+    gapLevel: 2,
+    ratioKey: '1-1',
+    images: {}, // { cellName: Image }
+  };
+
+  // DOM refs
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  const canvasInner = $('#canvasInner');
+  const canvasOuter = $('#canvasOuter');
+  const layoutGrid = $('#layoutGrid');
+  const ratioButtons = $('#ratioButtons');
+  const gapSlider = $('#gapSlider');
+  const gapLabel = $('#gapLabel');
+  const toast = $('#toast');
+  const dragOverlay = $('#dragOverlay');
+
+  // ──────────────────────────────────────
+  // HELPERS
+  // ──────────────────────────────────────
+  const getLayout = () => LAYOUTS.find(l => l.key === state.layoutKey) || LAYOUTS[0];
+
+  const getActiveCells = () => {
+    const layout = getLayout();
+    const names = new Set();
+    layout.areas.forEach(row => {
+      row.split(' ').forEach(c => {
+        if (c !== '.') names.add(c);
+      });
+    });
+    return [...names].sort();
+  };
+
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('visible');
+    clearTimeout(toast._tid);
+    toast._tid = setTimeout(() => toast.classList.remove('visible'), 2000);
+  };
+
+  const loadImage = (file) => new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('Not an image'));
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Read error'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleFile = async (file, cellName) => {
+    try {
+      const img = await loadImage(file);
+      state.images[cellName] = img;
+      render();
+      showToast(`已放置到 ${cellName.toUpperCase()} 格`);
+    } catch (e) {
+      showToast('请选择图片文件');
+    }
+  };
+
+  // ──────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────
+  const render = () => {
+    const layout = getLayout();
+    const activeCells = getActiveCells();
+    const gapPx = GAP_VALUES[state.gapLevel];
+
+    // Update canvas ratio class
+    canvasOuter.className = 'canvas-outer ratio-' + state.ratioKey;
+
+    // Update grid gap
+    canvasInner.style.gap = gapPx + 'px';
+
+    // Build grid-template
+    canvasInner.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+    canvasInner.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+    canvasInner.style.gridTemplateAreas = layout.areas.map(r => `"${r}"`).join(' ');
+
+    // Ensure cells exist
+    const existingCells = new Map();
+    canvasInner.querySelectorAll('.cell').forEach(el => existingCells.set(el.dataset.cell, el));
+
+    ALL_CELLS.forEach(name => {
+      let cell = existingCells.get(name);
+      if (!cell) {
+        cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.cell = name;
+        cell.style.gridArea = name;
+        cell.draggable = false;
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'cell-placeholder';
+        placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>点击 / 拖放 / 粘贴</span>`;
+        cell.appendChild(placeholder);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'cell-delete';
+        delBtn.innerHTML = '&#10005;';
+        delBtn.title = '删除图片';
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          delete state.images[name];
+          render();
+          showToast(`已删除 ${name.toUpperCase()} 格图片`);
+        });
+        cell.appendChild(delBtn);
+
+        // Click to upload
+        cell.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.onchange = () => {
+            if (input.files[0]) handleFile(input.files[0], name);
+          };
+          input.click();
+        });
+
+        // Drag events
+        cell.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cell.classList.add('drag-over');
+        });
+        cell.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cell.classList.remove('drag-over');
+        });
+        cell.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cell.classList.remove('drag-over');
+          const file = e.dataTransfer.files[0];
+          if (file) handleFile(file, name);
+        });
+
+        canvasInner.appendChild(cell);
+      }
+
+      // Update visibility
+      const isActive = activeCells.includes(name);
+      cell.classList.toggle('hidden', !isActive);
+
+      // Update image
+      const img = state.images[name];
+      const hasImg = !!img;
+      cell.classList.toggle('has-image', hasImg);
+
+      // Manage img element
+      let imgEl = cell.querySelector('img');
+      if (hasImg) {
+        if (!imgEl) {
+          imgEl = document.createElement('img');
+          cell.insertBefore(imgEl, cell.firstChild);
+        }
+        if (imgEl.src !== img.src) {
+          imgEl.src = img.src;
+        }
+      } else {
+        if (imgEl) imgEl.remove();
+      }
+    });
+
+    // Cleanup images for inactive cells
+    Object.keys(state.images).forEach(name => {
+      if (!activeCells.includes(name)) {
+        delete state.images[name];
+      }
+    });
+
+    // Update gap label
+    gapLabel.textContent = gapPx + 'px';
+    gapSlider.value = state.gapLevel;
+
+    // Update ratio buttons
+    $$('.ratio-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.ratio === state.ratioKey);
+    });
+
+    // Update layout thumbs
+    $$('.layout-thumb').forEach(thumb => {
+      thumb.classList.toggle('active', thumb.dataset.layout === state.layoutKey);
+    });
+  };
+
+  // ──────────────────────────────────────
+  // BUILD STATIC CONTROLS
+  // ──────────────────────────────────────
+  const buildLayoutThumbs = () => {
+    layoutGrid.innerHTML = '';
+    LAYOUTS.forEach(layout => {
+      const btn = document.createElement('button');
+      btn.className = 'layout-thumb';
+      btn.dataset.layout = layout.key;
+      btn.title = layout.label;
+      btn.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+      btn.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+      btn.style.gridTemplateAreas = layout.areas.map(r => `"${r}"`).join(' ');
+
+      const cellNames = new Set();
+      layout.areas.forEach(row => row.split(' ').forEach(c => { if (c !== '.') cellNames.add(c); }));
+
+      cellNames.forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'layout-thumb-cell';
+        div.style.gridArea = name;
+        btn.appendChild(div);
+      });
+
+      btn.addEventListener('click', () => {
+        state.layoutKey = layout.key;
+        render();
+      });
+
+      layoutGrid.appendChild(btn);
+    });
+  };
+
+  const buildRatioButtons = () => {
+    ratioButtons.innerHTML = '';
+    RATIOS.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'ratio-btn';
+      btn.dataset.ratio = r.key;
+      btn.textContent = r.label;
+      btn.addEventListener('click', () => {
+        state.ratioKey = r.key;
+        render();
+      });
+      ratioButtons.appendChild(btn);
+    });
+  };
+
+  // ──────────────────────────────────────
+  // GAP SLIDER
+  // ──────────────────────────────────────
+  gapSlider.addEventListener('input', () => {
+    state.gapLevel = parseInt(gapSlider.value);
+    render();
+  });
+
+  // ──────────────────────────────────────
+  // GLOBAL DRAG & DROP
+  // ──────────────────────────────────────
+  let dragCounter = 0;
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dragOverlay.classList.add('active');
+  });
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dragOverlay.classList.remove('active');
+    }
+  });
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dragOverlay.classList.remove('active');
+  });
+
+  // ──────────────────────────────────────
+  // CTRL+V PASTE
+  // ──────────────────────────────────────
+  document.addEventListener('paste', (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        const activeCells = getActiveCells();
+        // Find first empty cell
+        const emptyCell = activeCells.find(c => !state.images[c]);
+        if (emptyCell) {
+          handleFile(file, emptyCell);
+        } else {
+          showToast('所有格子已满，请先清空或删除某个格子');
+        }
+        return;
+      }
+    }
+  });
+
+  // ──────────────────────────────────────
+  // EXPORT PNG
+  // ──────────────────────────────────────
+  const exportPNG = () => {
+    const layout = getLayout();
+    const activeCells = getActiveCells();
+    const gapPx = GAP_VALUES[state.gapLevel];
+
+    // Check if any image exists
+    const hasImages = activeCells.some(c => state.images[c]);
+    if (!hasImages) {
+      showToast('请先添加至少一张图片');
+      return;
+    }
+
+    // Calculate output dimensions
+    const [rw, rh] = state.ratioKey.split('-').map(Number);
+    const baseSize = 2000;
+    let outW, outH;
+    if (rw / rh >= 1) {
+      outW = baseSize;
+      outH = Math.round(baseSize * (rh / rw));
+    } else {
+      outH = baseSize;
+      outW = Math.round(baseSize * (rw / rh));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#1e1f26';
+    ctx.fillRect(0, 0, outW, outH);
+
+    const totalGapX = (layout.cols - 1) * gapPx;
+    const totalGapY = (layout.rows - 1) * gapPx;
+    const cellW = (outW - totalGapX) / layout.cols;
+    const cellH = (outH - totalGapY) / layout.rows;
+
+    // Build cell position map from grid-template-areas
+    const cellPositions = {};
+    layout.areas.forEach((row, rowIdx) => {
+      const cols = row.split(' ');
+      cols.forEach((name, colIdx) => {
+        if (name === '.') return;
+        if (!cellPositions[name]) {
+          cellPositions[name] = { colStart: colIdx, rowStart: rowIdx, colSpan: 1, rowSpan: 1 };
+        } else {
+          cellPositions[name].colSpan = Math.max(cellPositions[name].colSpan, colIdx - cellPositions[name].colStart + 1);
+          cellPositions[name].rowSpan = Math.max(cellPositions[name].rowSpan, rowIdx - cellPositions[name].rowStart + 1);
+        }
+      });
+    });
+
+    activeCells.forEach(name => {
+      const img = state.images[name];
+      if (!img) return;
+      const pos = cellPositions[name];
+      if (!pos) return;
+
+      const x = pos.colStart * (cellW + gapPx);
+      const y = pos.rowStart * (cellH + gapPx);
+      const w = pos.colSpan * cellW + (pos.colSpan - 1) * gapPx;
+      const h = pos.rowSpan * cellH + (pos.rowSpan - 1) * gapPx;
+
+      // object-fit: cover
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const cellRatio = w / h;
+
+      let sx, sy, sw, sh;
+      if (imgRatio > cellRatio) {
+        // Image wider than cell → crop left/right
+        sh = img.naturalHeight;
+        sw = img.naturalHeight * cellRatio;
+        sx = (img.naturalWidth - sw) / 2;
+        sy = 0;
+      } else {
+        // Image taller than cell → crop top/bottom
+        sw = img.naturalWidth;
+        sh = img.naturalWidth / cellRatio;
+        sx = 0;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    });
+
+    // Download
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `photocollage_${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('导出成功！');
+    }, 'image/png');
+  };
+
+  // ──────────────────────────────────────
+  // RANDOM FILL
+  // ──────────────────────────────────────
+  const randomFill = async () => {
+    const activeCells = getActiveCells();
+    const layout = getLayout();
+
+    // Build cell positions (colStart, rowStart, colSpan, rowSpan)
+    const cellPositions = {};
+    layout.areas.forEach((row, rowIdx) => {
+      row.split(' ').forEach((name, colIdx) => {
+        if (name === '.') return;
+        if (!cellPositions[name]) {
+          cellPositions[name] = { colStart: colIdx, rowStart: rowIdx, colSpan: 1, rowSpan: 1 };
+        } else {
+          cellPositions[name].colSpan = Math.max(cellPositions[name].colSpan, colIdx - cellPositions[name].colStart + 1);
+          cellPositions[name].rowSpan = Math.max(cellPositions[name].rowSpan, rowIdx - cellPositions[name].rowStart + 1);
+        }
+      });
+    });
+
+    const promises = activeCells.map(async (name) => {
+      if (state.images[name]) return; // Don't overwrite
+      const pos = cellPositions[name];
+      const w = Math.max(200, pos.colSpan * 400);
+      const h = Math.max(200, pos.rowSpan * 400);
+      const seed = Math.floor(Math.random() * 1000);
+      const url = `https://picsum.photos/seed/${seed}/${w}/${h}`;
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const img = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = URL.createObjectURL(blob);
+        });
+        state.images[name] = img;
+      } catch {
+        // Fallback: solid color
+        const solidCanvas = document.createElement('canvas');
+        solidCanvas.width = w;
+        solidCanvas.height = h;
+        const sctx = solidCanvas.getContext('2d');
+        const hue = Math.floor(Math.random() * 360);
+        sctx.fillStyle = `hsl(${hue}, 50%, 40%)`;
+        sctx.fillRect(0, 0, w, h);
+        // Add some visual interest
+        sctx.fillStyle = `hsl(${hue}, 40%, 50%)`;
+        sctx.beginPath();
+        sctx.arc(w / 2, h / 2, Math.min(w, h) * 0.25, 0, Math.PI * 2);
+        sctx.fill();
+        const img = new Image();
+        img.src = solidCanvas.toDataURL();
+        await new Promise(r => { img.onload = r; });
+        state.images[name] = img;
+      }
+    });
+
+    await Promise.all(promises);
+    render();
+    showToast('随机填充完成！');
+  };
+
+  // ──────────────────────────────────────
+  // CLEAR ALL
+  // ──────────────────────────────────────
+  const clearAll = () => {
+    state.images = {};
+    render();
+    showToast('已清空全部图片');
+  };
+
+  // ──────────────────────────────────────
+  // EVENT BINDINGS
+  // ──────────────────────────────────────
+  $('#btnExport').addEventListener('click', exportPNG);
+  $('#btnRandomFill').addEventListener('click', randomFill);
+  $('#btnClear').addEventListener('click', clearAll);
+
+  // ──────────────────────────────────────
+  // INIT
+  // ──────────────────────────────────────
+  buildLayoutThumbs();
+  buildRatioButtons();
+  render();
+
+})();
+</script>
+</body>
+</html>
